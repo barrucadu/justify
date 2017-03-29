@@ -13,12 +13,8 @@ main = do
   mapM_ (\(w,s) -> putStrLn ("'" ++ w ++ "': " ++ show s)) sizes
   let width = 500
   iota <- getStringSize " "
-  let ls = justify2 width sizes iota (words stdin)
+  let ls = justify3 width sizes iota (words stdin)
   render "out.png" width ls
-
--- | A line of text is a non-empty list of words interspersed with
--- spaces of varying sizes.
-data Line = Line String [(Int, String)]
 
 -- | Render a paragraph of text to an image.
 render :: String -> Int -> [Line] -> IO ()
@@ -67,6 +63,22 @@ fragments s0 = s0 : concatMap go (zip (inits s0) (tails s0)) where
   go (h, t) = [h ++ "-", '-' : t]
 
 -------------------------------------------------------------------------------
+-- Text
+
+-- | A line of text is a non-empty list of words interspersed with
+-- spaces of varying sizes.
+data Line = Line String [(Int, String)]
+
+-- | Get the length of a line.
+lineLen :: [(String, Int)] -> Line -> Int
+lineLen sizes (Line w rest) = wordSize w + sum [gap + wordSize s | (gap, s) <- rest] where
+  wordSize s = fromMaybe 0 (lookup s sizes)
+
+-- | Get the number of words in a line.
+lineWords :: Line -> Int
+lineWords (Line _ rest) = 1 + length rest
+
+-------------------------------------------------------------------------------
 -- Text Justification
 
 type Justifier = Int -> [(String, Int)] -> Int -> [String] -> [Line]
@@ -92,6 +104,29 @@ justify2 width sizes iota = go ([], 0) where
     [] -> []
 
   toLine word rest = Line word [(iota, s) | s <- rest]
+
+-- | "Web browser text justification": split text into lines with the
+-- ragged-right algorithm, then add extra spacing between words.
+justify3 :: Justifier
+justify3 = padWords justify2
+
+-- | Put extra padding between words to fill up to the line width.
+padWords :: Justifier -> Justifier
+padWords justifier width sizes iota ws0 = go (justifier width sizes iota ws0) where
+  go [] = []
+  go [lastLine] = [lastLine]
+  go (l@(Line w rest):ls) =
+    let slack = width - lineLen sizes l
+        gaps = lineWords l - 1
+        wordSlack = slack `div` gaps
+        extraSlack = slack - wordSlack * gaps
+        extraSlackPos = 42 `mod` (gaps - 1)
+    in Line w (go' wordSlack extraSlack extraSlackPos rest) : go ls
+
+  go' wordSlack extraSlack extraSlackPos ((gap,w):ws)
+    | extraSlackPos == 0 = (gap + wordSlack + extraSlack, w) : go' wordSlack 0 0 ws
+    | otherwise = (gap + wordSlack, w) : go' wordSlack extraSlack extraSlackPos ws
+  go' _ _ _ [] = []
 
 -------------------------------------------------------------------------------
 -- Font

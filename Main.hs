@@ -5,6 +5,7 @@ import Data.List (inits, nub, sortOn, tails)
 import Data.Maybe (fromMaybe)
 import Data.Ord (Down(..))
 import qualified Graphics.GD as GD
+import Text.Hyphenation (hyphenate, latin)
 
 main :: IO ()
 main = do
@@ -14,7 +15,7 @@ main = do
   mapM_ (\(w,s) -> putStrLn ("'" ++ w ++ "': " ++ show s)) sizes
   let width = 500
   iota <- getStringSize " "
-  let ls = justify4 width sizes iota (words stdin)
+  let ls = justify5 width sizes iota (words stdin)
   render "out.png" width ls
 
 -- | Render a paragraph of text to an image.
@@ -62,7 +63,7 @@ fragments s0 = s0 : concatMap (\(h,t) -> [h,t]) (fragments' s0)
 
 -- | Every way we can break a word, including no breaks.
 fragments' :: String -> [(String, String)]
-fragments' s0 = (sortOn (Down . length . fst) . map go . init . tail) (zip (inits s0) (tails s0)) where
+fragments' s0 = (map go . init . tail) (zip (inits s0) (tails s0)) where
   go (h, t) = (h ++ "-", t)
 
 -------------------------------------------------------------------------------
@@ -116,12 +117,26 @@ justify3 = padWords justify2
 -- | Hyphenation: try to get closer to the line limit by splitting
 -- words.
 justify4 :: Justifier
-justify4 = padWords justifier where
+justify4 = hyphenated fragments'
+
+-- | Knuth-Liang hyphenation.
+justify5 :: Justifier
+justify5 = hyphenated go where
+  go w =
+    let prefixes = (init . scanl1 (++)) (hyphenate latin w)
+    in map (\prefix -> (prefix++"-", drop (length prefix) w)) prefixes
+
+-- | Justify text with hyphenation, breaking words with the supplied
+-- hyphenator.
+hyphenated :: (String -> [(String, String)]) -> Justifier
+hyphenated hyphenator = padWords justifier where
   justifier width sizes iota = go ([], 0) where
     go (sofar, len) (w:ws)
       | fits len w = go (w:sofar, len + iota + fromMaybe 0 (lookup w sizes)) ws
-      | otherwise = case filter (fits len . fst) (fragments' w) of
-          ((h,t):_)  -> go (h:sofar, len + iota + fromMaybe 0 (lookup h sizes)) (t:ws)
+      | otherwise = case dropWhile (not . fits len . fst) . sortOn (Down . length . fst) $ hyphenator w of
+          ((h,t):_)  -> case reverse (h:sofar) of
+            (word:rest) -> toLine word rest : go ([], 0) (t:ws)
+            _ -> error "unreachable"
           [] -> case reverse sofar of
             (word:rest) -> toLine word rest : go ([], 0) (w:ws)
             [] -> Line w [] : go ([], 0) ws

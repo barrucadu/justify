@@ -1,8 +1,9 @@
 module Main where
 
 import Control.Monad (foldM_)
-import Data.List (inits, nub, tails)
+import Data.List (inits, nub, sortOn, tails)
 import Data.Maybe (fromMaybe)
+import Data.Ord (Down(..))
 import qualified Graphics.GD as GD
 
 main :: IO ()
@@ -13,7 +14,7 @@ main = do
   mapM_ (\(w,s) -> putStrLn ("'" ++ w ++ "': " ++ show s)) sizes
   let width = 500
   iota <- getStringSize " "
-  let ls = justify3 width sizes iota (words stdin)
+  let ls = justify4 width sizes iota (words stdin)
   render "out.png" width ls
 
 -- | Render a paragraph of text to an image.
@@ -57,10 +58,12 @@ getStringSize str = do
 
 -- | Every way we can break a word, including no breaks.
 fragments :: String -> [String]
-fragments s0 = s0 : concatMap go (zip (inits s0) (tails s0)) where
-  go ([], _) = []
-  go (_, []) = []
-  go (h, t) = [h ++ "-", '-' : t]
+fragments s0 = s0 : concatMap (\(h,t) -> [h,t]) (fragments' s0)
+
+-- | Every way we can break a word, including no breaks.
+fragments' :: String -> [(String, String)]
+fragments' s0 = (sortOn (Down . length . fst) . map go . init . tail) (zip (inits s0) (tails s0)) where
+  go (h, t) = (h ++ "-", t)
 
 -------------------------------------------------------------------------------
 -- Text
@@ -109,6 +112,26 @@ justify2 width sizes iota = go ([], 0) where
 -- ragged-right algorithm, then add extra spacing between words.
 justify3 :: Justifier
 justify3 = padWords justify2
+
+-- | Hyphenation: try to get closer to the line limit by splitting
+-- words.
+justify4 :: Justifier
+justify4 = padWords justifier where
+  justifier width sizes iota = go ([], 0) where
+    go (sofar, len) (w:ws)
+      | fits len w = go (w:sofar, len + iota + fromMaybe 0 (lookup w sizes)) ws
+      | otherwise = case filter (fits len . fst) (fragments' w) of
+          ((h,t):_)  -> go (h:sofar, len + iota + fromMaybe 0 (lookup h sizes)) (t:ws)
+          [] -> case reverse sofar of
+            (word:rest) -> toLine word rest : go ([], 0) (w:ws)
+            [] -> Line w [] : go ([], 0) ws
+    go (sofar, _) [] = case reverse sofar of
+      (word:rest) -> [toLine word rest]
+      [] -> []
+
+    fits len w = len + iota + fromMaybe 0 (lookup w sizes) <= width
+
+    toLine word rest = Line word [(iota, s) | s <- rest]
 
 -- | Put extra padding between words to fill up to the line width.
 padWords :: Justifier -> Justifier

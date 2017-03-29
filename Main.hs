@@ -2,6 +2,7 @@ module Main where
 
 import Control.Monad (foldM_)
 import Data.List (inits, nub, tails)
+import Data.Maybe (fromMaybe)
 import qualified Graphics.GD as GD
 
 main :: IO ()
@@ -12,7 +13,7 @@ main = do
   mapM_ (\(w,s) -> putStrLn ("'" ++ w ++ "': " ++ show s)) sizes
   let width = 500
   iota <- getStringSize " "
-  let ls = justify1 width sizes iota (words stdin)
+  let ls = justify2 width sizes iota (words stdin)
   render "out.png" width ls
 
 -- | A line of text is a non-empty list of words interspersed with
@@ -68,10 +69,29 @@ fragments s0 = s0 : concatMap go (zip (inits s0) (tails s0)) where
 -------------------------------------------------------------------------------
 -- Text Justification
 
--- | Justify a paragraph of text: first attempt, no wrapping at all.
-justify1 :: Int -> [(String, Int)] -> Int -> [String] -> [Line]
+type Justifier = Int -> [(String, Int)] -> Int -> [String] -> [Line]
+
+-- | No wrapping: just put everything on the same line.
+justify1 :: Justifier
 justify1 _ _ iota (w:ws) = [Line w [(iota, w') | w' <- ws]]
 justify1 _ _ _ [] = []
+
+-- | Ragged-right: break when adding a word would exceed the line
+-- length.
+justify2 :: Justifier
+justify2 width sizes iota = go ([], 0) where
+  go (sofar, len) (w:ws) =
+    let newlen = len + iota + fromMaybe 0 (lookup w sizes)
+    in if newlen > width
+       then case reverse sofar of
+              (word:rest) -> toLine word rest : go ([], 0) (w:ws)
+              [] -> Line w [] : go ([], 0) ws
+       else go (w:sofar, newlen) ws
+  go (sofar, _) [] = case reverse sofar of
+    (word:rest) -> [toLine word rest]
+    [] -> []
+
+  toLine word rest = Line word [(iota, s) | s <- rest]
 
 -------------------------------------------------------------------------------
 -- Font

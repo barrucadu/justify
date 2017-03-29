@@ -7,17 +7,26 @@ main :: IO ()
 main = do
   stdin <- getLine
   putStrLn ("Got: '" ++ stdin ++ "'.")
-  sizes <- getCharacterSizes (nub stdin)
-  mapM_ (\(c,s) -> putStrLn ("'" ++ [c] ++ "': " ++ show s)) sizes
+  sizes <- getWordSizes stdin
+  mapM_ (\(w,s) -> putStrLn ("'" ++ w ++ "': " ++ show s)) sizes
 
--- | Get the size of every character in a string..
-getCharacterSizes :: String -> IO [(Char, Int)]
-getCharacterSizes cs0 = GD.withImage (GD.newImage (100, 100)) (go cs0) where
-  go (c:cs) img = do
-    ((x1,_), _, (x2,_), _) <- GD.measureString fontName fontSize 0  (0, 0) [c] 0
-    rest <- go cs img
-    pure ((c, x2-x1):rest)
-  go [] _ = pure []
+-- | Get the size of every word in a string.
+--
+-- It's better to operate on whole words rather than characters as
+-- this will take into account ligatures, which may result in a
+-- rendered string being narrower than just the sum of its character
+-- widths.
+getWordSizes :: String -> IO [(String, Int)]
+getWordSizes = mapM go . nub . words where
+  go w = do
+    size <- getStringSize w
+    pure (w, size)
+
+-- | Get the size of a string.
+getStringSize :: String -> IO Int
+getStringSize str = do
+  ((x1,_), _, (x2,_), _) <- GD.measureString fontName fontSize 0 (0, 0) str 0
+  pure (x2-x1)
 
 fontName :: String
 fontName = "/home/barrucadu/projects/justify/font.ttf"

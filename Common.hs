@@ -4,6 +4,7 @@ import Control.Monad (foldM_)
 import Data.List (inits, nub, tails)
 import Data.Maybe (fromMaybe)
 import qualified Graphics.GD as GD
+import Text.Hyphenation (hyphenate, latin)
 
 -------------------------------------------------------------------------------
 -- Text Justification
@@ -48,6 +49,10 @@ getStringSize str = do
   ((x1,_), _, (x2,_), _) <- GD.measureString fontName fontSize 0 (0, 0) str 0
   pure (x2-x1)
 
+
+-------------------------------------------------------------------------------
+-- Word Breaking
+
 -- | Every way we can break a word, including no breaks.
 fragments :: String -> [String]
 fragments s0 = s0 : concatMap (\(h,t) -> [h,t]) (fragments' s0)
@@ -56,6 +61,12 @@ fragments s0 = s0 : concatMap (\(h,t) -> [h,t]) (fragments' s0)
 fragments' :: String -> [(String, String)]
 fragments' s0 = (map go . init . tail) (zip (inits s0) (tails s0)) where
   go (h, t) = (h ++ "-", t)
+
+-- | Hyphenate a word with Knuth-Liang
+knuthHyphenator :: String -> [(String, String)]
+knuthHyphenator w =
+  let prefixes = (init . scanl1 (++)) (hyphenate latin w)
+  in map (\prefix -> (prefix++"-", drop (length prefix) w)) prefixes
 
 
 -------------------------------------------------------------------------------

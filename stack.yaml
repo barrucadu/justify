@@ -5,4 +5,4 @@ extra-deps: []
 flags: {}
 extra-package-dbs: []
 nix:
-  packages: [gd, fontconfig, freetype, expat]
+  packages: [gd, fontconfig, freetype, expat, zlib, libpng, libjpeg]

@@ -1,11 +1,11 @@
-module Indent where
+module Rich where
 
 import Control.Monad (foldM_)
-import Data.List (sortOn)
+import Data.List (nub, sortOn)
 import Data.List.NonEmpty (NonEmpty(..))
 import qualified Graphics.GD as GD
 
-import Common
+import Common hiding (fontName, getWordSizes, getStringSize)
 
 -------------------------------------------------------------------------------
 -- Lines and Paragraphs
@@ -13,30 +13,30 @@ import Common
 -- | A paragraph is a collection of lines of text.
 type Paragraph = [Line]
 
--- | A line of text is a non-empty list of words prefixed with spaces.
-type Line = NonEmpty (Int, String)
+-- | A line of text is a non-empty list of spans prefixed with spaces.
+type Line = NonEmpty (Int, String, Font)
 
 -- | Get the length of a line.
-lineLen :: [(String, Int)] -> Line -> Int
-lineLen sizes (w:|ws) = sum [gap + wordSize sizes s | (gap, s) <- w:ws]
+lineLen :: [((String, Font), Int)] -> Line -> Int
+lineLen sizes (w:|ws) = sum [gap + wordSize sizes (s, f) | (gap, s, f) <- w:ws]
 
 -- | Get the length of a line, without considering an initial indent.
-lineLenNoIndent :: [(String, Int)] -> Line -> Int
-lineLenNoIndent sizes ((_,w):|ws) = wordSize sizes w + sum [gap + wordSize sizes s | (gap, s) <- ws]
+lineLenNoIndent :: [((String, Font), Int)] -> Line -> Int
+lineLenNoIndent sizes ((_,w,f):|ws) = wordSize sizes (w, f) + sum [gap + wordSize sizes (s, f) | (gap, s, f) <- ws]
 
--- | Get the number of words in a line.
-lineWords :: Line -> Int
-lineWords = length
+-- | Get the number of spans in a line.
+lineSpans :: Line -> Int
+lineSpans = length
 
 -- | Get the maximum length of a line.
-maxLineLen :: [(String, Int)] -> Paragraph -> Int
+maxLineLen :: [((String, Font), Int)] -> Paragraph -> Int
 maxLineLen sizes ls = maximum (0:map (lineLen sizes) ls)
 
 -- | Render a paragraph of text to an image.
-render :: [(String, Int)] -> String -> Paragraph -> IO ()
+render :: [((String, Font), Int)] -> String -> Paragraph -> IO ()
 render sizes fname ls0 = do
     let width = maxLineLen sizes ls0
-    ((_,y1), _, (_,y2), _) <- GD.measureString fontName fontSize 0 (0, 0) "l" 0
+    ((_,y1), _, (_,y2), _) <- GD.measureString (fontName Normal) fontSize 0 (0, 0) "l" 0
     let lineheight = round (1.5 * fromIntegral (abs $ y2 - y1))
     img <- GD.newImage (width, (length ls0 + 1) * lineheight)
     GD.fillImage (GD.rgb 255 255 255) img
@@ -51,13 +51,45 @@ render sizes fname ls0 = do
 
       goLine n ws = do
         let y = n * lineheight
-        let r x s = (\(_, _, (x',_), _) -> x') <$> GD.drawString fontName fontSize 0 (x, y) s 0 img
-        foldM_ (\x (xoff, s) -> r (xoff+x) s) 0 ws
+        let r f x s = (\(_, _, (x',_), _) -> x') <$> GD.drawString (fontName f) fontSize 0 (x, y) s 0 img
+        foldM_ (\x (xoff, s, f) -> r f (xoff+x) s) 0 ws
+
+-------------------------------------------------------------------------------
+-- Fonts
+
+type RichText = [(String, Font)]
+
+-- | Font styles.
+data Font = Normal | Bold | Italic | Monospace
+  deriving (Bounded, Enum, Eq, Ord, Read, Show)
+
+-- | Font file names
+fontName :: Font -> String
+fontName Normal    = "/home/barrucadu/projects/justify/font.ttf"
+fontName Bold      = "/home/barrucadu/projects/justify/bold.ttf"
+fontName Italic    = "/home/barrucadu/projects/justify/italic.ttf"
+fontName Monospace = "/home/barrucadu/projects/justify/mono.ttf"
+
+-- | Get the size of every word in a string, font-aware.
+getWordSizes :: RichText -> IO [((String, Font), Int)]
+getWordSizes = fmap (nub . concat) . mapM go where
+  go w@(_, Monospace) = do
+    size <- getStringSize w
+    pure [(w, size)]
+  go (s, f) =
+    let wsize w = let wf = (w, f) in getStringSize wf >>= \size -> pure (wf, size)
+    in mapM wsize (concatMap fragments (words s))
+
+-- | Get the size of a string.
+getStringSize :: (String, Font) -> IO Int
+getStringSize (s, f) = do
+  ((x1,_), _, (x2,_), _) <- GD.measureString (fontName f) fontSize 0 (0, 0) s 0
+  pure (x2-x1)
 
 -------------------------------------------------------------------------------
 -- Justification
 
-type Justifier = Int -> [(String, Int)] -> Int -> [String] -> Paragraph
+type Justifier = Int -> [((String, Font), Int)] -> Int -> RichText -> Paragraph
 
 -- | Ragged-right: break when adding a word would exceed the line
 -- length.
@@ -83,7 +115,7 @@ rr3 = indentsAndLineLengths lenf raggedRight where
 rl1 :: Justifier
 rl1 width0 sizes = indentsAndLineLengths lenf raggedLeft width0 sizes where
   lenf _ = (0, width0)
-  raggedLeft = map (\l@((_,w):|ws) -> (width0 - lineLen sizes l,w):|ws)
+  raggedLeft = map (\l@((_,w,f):|ws) -> (width0 - lineLen sizes l,w,f):|ws)
 
 -- | Ragged-left with increasing line lengths.
 rl2 :: Justifier
@@ -91,7 +123,7 @@ rl2 width0 sizes = indentsAndLineLengths lenf raggedLeft width0 sizes where
   lenf n = (0, 50 * (n+1))
   raggedLeft ls =
     let maxWidth = 50 * length ls
-    in map (\l@((_,w):|ws) -> (maxWidth - lineLen sizes l,w):|ws) ls
+    in map (\l@((_,w,f):|ws) -> (maxWidth - lineLen sizes l,w,f):|ws) ls
 
 -- | Justified with increasing line lengths
 justify1 :: Justifier
@@ -123,7 +155,11 @@ indentsAndLineLengths
   -> (Paragraph -> Paragraph)
   -- ^ Post-processing function.
   -> Justifier
-indentsAndLineLengths lenf postf _ sizes iota = leastBad iota . map postf . go 0 ([], 0) where
+indentsAndLineLengths lenf postf _ sizes iota = leastBad iota . map postf . go 0 ([], 0) . concatMap pre where
+  -- pre-processing: split up spans into words
+  pre w@(_, Monospace) = [w]
+  pre (s, f) = [(s', f) | s' <- words s]
+
   go n ([], _) (w:ws) = go n ([w], wordSize sizes w) ws
   go n (sofar, len) (w:ws)
     | fits n len w = go n (w:sofar, len + iota + wordSize sizes w) ws
@@ -133,10 +169,10 @@ indentsAndLineLengths lenf postf _ sizes iota = leastBad iota . map postf . go 0
          [] -> [toLine n w [] : ls | ls <- go (n+1) ([], 0) ws])
       ++
       [ toLine n word rest : ls
-        | (h,t) <- knuthHyphenator w
+        | (h,t) <- hyphens w
         , fits n len h
         , let (word:rest) = reverse (h:sofar)
-        , ls <- go (n+1) ([], 0) (t:ws)
+        , ls <- go (n+1) ([], 0) (if null (fst t) then ws else (t:ws))
       ]
   go n (sofar, _) [] = case reverse sofar of
     (word:rest) -> [[toLine n word rest]]
@@ -144,25 +180,28 @@ indentsAndLineLengths lenf postf _ sizes iota = leastBad iota . map postf . go 0
 
   fits n len w = len + iota + wordSize sizes w <= snd (lenf n)
 
-  toLine n word rest = (fst (lenf n),word):|[(iota, s) | s <- rest]
+  toLine n (w,f) rest = (fst (lenf n), w, f):|[(iota, s, f') | (s, f') <- rest]
+
+  hyphens (w, Monospace) = [((w, Monospace), ("", Monospace))] -- never hyphenate monospaced spans
+  hyphens (w, f) = map (\(h,t) -> ((h,f),(t,f))) (knuthHyphenator w)
 
 -- | Put extra padding between words to fill up to the line width.
-padWords :: [(String, Int)] -> (Int -> Int) -> Paragraph -> Paragraph
+padWords :: [((String, Font), Int)] -> (Int -> Int) -> Paragraph -> Paragraph
 padWords sizes lenf = go 0 where
   go _ [] = []
   go _ [lastLine] = [lastLine]
   go n (l@(_:|[]):ls) = l : go (n+1) ls
   go n (l@(w:|rest):ls) =
     let slack = lenf n - lineLenNoIndent sizes l
-        gaps = lineWords l - 1
+        gaps = lineSpans l - 1
         wordSlack = slack `div` gaps
         extraSlack = slack - wordSlack * gaps
         extraSlackPos = 42 `mod` gaps
     in (w:|go' wordSlack extraSlack extraSlackPos rest) : go (n+1) ls
 
-  go' wordSlack extraSlack extraSlackPos ((gap,w):ws)
-    | extraSlackPos == 0 = (gap + wordSlack + extraSlack, w) : go' wordSlack 0 0 ws
-    | otherwise = (gap + wordSlack, w) : go' wordSlack extraSlack extraSlackPos ws
+  go' wordSlack extraSlack extraSlackPos ((gap,w,f):ws)
+    | extraSlackPos == 0 = (gap + wordSlack + extraSlack, w, f) : go' wordSlack 0 0 ws
+    | otherwise = (gap + wordSlack, w, f) : go' wordSlack extraSlack extraSlackPos ws
   go' _ _ _ [] = []
 
 -- | Pick the least-bad paragraph.
@@ -179,6 +218,6 @@ leastBad iota candidates = case sortOn badness candidates of
         -- space and the smallest possible space, raised to the third
         -- power. This is nonlinear so that one particularly bad line
         -- is worse than a few slightly bad lines.
-        lbadness (_:|rest) = (maximum (iota : map fst rest) - iota) ^ 3
-        lhyphenated ((_,w):|rest) = last (last (w : map snd rest)) == '-'
+        lbadness (_:|rest) = (maximum (iota : map (\(g,_,_) -> g) rest) - iota) ^ 3
+        lhyphenated ((_,w,_):|rest) = last (last (w : map (\(_,w,_) -> w) rest)) == '-'
       in (sum (map lbadness ls), length (filter lhyphenated ls))

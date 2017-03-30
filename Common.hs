@@ -27,7 +27,7 @@ getStringSize str = do
   pure (x2-x1)
 
 -- | Get the size of a word.
-wordSize :: [(String, Int)] -> String -> Int
+wordSize :: Eq a => [(a, Int)] -> a -> Int
 wordSize sizes w = fromMaybe 0 (lookup w sizes)
 
 -------------------------------------------------------------------------------

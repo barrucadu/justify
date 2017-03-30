@@ -5,6 +5,7 @@ import Data.Foldable (for_)
 import Common
 import qualified Basic
 import qualified Indent
+import qualified Rich
 
 main :: IO ()
 main = do
@@ -26,6 +27,23 @@ main = do
         fname = "out-indent-" ++ n ++ ".png"
     in Indent.render sizes fname ls
 
+  -- rich text renderers
+  let rtf = makeFancy stdin
+  richSizes <- Rich.getWordSizes rtf
+  for_ [("rr1", Rich.rr1), ("rr2", Rich.rr2), ("rr3", Rich.rr3), ("rl1", Rich.rl1), ("rl2", Rich.rl2), ("justify1", Rich.justify1), ("justify2", Rich.justify2), ("justify3", Rich.justify3)] $ \(n, justifier) ->
+    let ls    = justifier width richSizes iota rtf
+        fname = "out-rich-" ++ n ++ ".png"
+    in Rich.render richSizes fname ls
+
 -- | Default line length
 width :: Int
 width = 500
+
+-- | Make text fancy
+makeFancy :: String -> Rich.RichText
+makeFancy = go Rich.Normal . words where
+  go _ [] = []
+  go f s =
+    let (before, after) = (take 3 s, drop 3 s)
+        f' = if f == maxBound then minBound else succ f
+    in (unwords before, f) : go f' after

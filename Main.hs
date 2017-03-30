@@ -30,7 +30,7 @@ main = do
   -- rich text renderers
   let rtf = makeFancy stdin
   richSizes <- Rich.getWordSizes rtf
-  for_ [("rr1", Rich.rr1), ("rr2", Rich.rr2), ("rr3", Rich.rr3), ("rl1", Rich.rl1), ("rl2", Rich.rl2), ("justify1", Rich.justify1), ("justify2", Rich.justify2), ("justify3", Rich.justify3)] $ \(n, justifier) ->
+  for_ [("rr1", Rich.rr1), ("rr2", Rich.rr2), ("rr3", Rich.rr3), ("rl1", Rich.rl1), ("rl2", Rich.rl2), ("justify1", Rich.justify1), ("justify2", Rich.justify2), ("justify3", Rich.justify3), ("justify4", Rich.justify4)] $ \(n, justifier) ->
     let ls    = justifier width richSizes iota rtf
         fname = "out-rich-" ++ n ++ ".png"
     in Rich.render richSizes fname ls

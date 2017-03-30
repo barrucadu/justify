@@ -125,21 +125,27 @@ rl2 width0 sizes = indentsAndLineLengths lenf raggedLeft width0 sizes where
     let maxWidth = 50 * length ls
     in map (\l@((_,w,f):|ws) -> (maxWidth - lineLen sizes l,w,f):|ws) ls
 
--- | Justified with increasing line lengths
+-- | Justified.
 justify1 :: Justifier
 justify1 width0 sizes = indentsAndLineLengths lenf justify width0 sizes where
+  lenf _  = (0, width0)
+  justify = padWords sizes (snd . lenf)
+
+-- | Justified with increasing line lengths
+justify2 :: Justifier
+justify2 width0 sizes = indentsAndLineLengths lenf justify width0 sizes where
   lenf n  = (0, 50 * (1+n))
   justify = padWords sizes (snd . lenf)
 
 -- | Justified with increasing left indents
-justify2 :: Justifier
-justify2 width0 sizes = indentsAndLineLengths lenf justify width0 sizes where
+justify3 :: Justifier
+justify3 width0 sizes = indentsAndLineLengths lenf justify width0 sizes where
   lenf n  = (50 * n, width0)
   justify = padWords sizes (snd . lenf)
 
 -- | Justified with increasing line lengths and left indents
-justify3 :: Justifier
-justify3 width0 sizes = indentsAndLineLengths lenf justify width0 sizes where
+justify4 :: Justifier
+justify4 width0 sizes = indentsAndLineLengths lenf justify width0 sizes where
   lenf n  = (50 * n, 50 * (1+n))
   justify = padWords sizes (snd . lenf)
 

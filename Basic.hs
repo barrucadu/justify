@@ -1,10 +1,57 @@
-module BasicJustifiers where
+module Basic where
 
+import Control.Monad (foldM_)
 import Data.List (sortOn)
 import Data.Maybe (fromMaybe)
 import Data.Ord (Down(..))
+import qualified Graphics.GD as GD
 
 import Common
+
+-------------------------------------------------------------------------------
+-- Lines and Paragraphs
+
+-- | A paragraph is a collection of lines of text.
+type Paragraph = [Line]
+
+-- | A line of text is a non-empty list of words interspersed with
+-- spaces of varying sizes.
+data Line = Line String [(Int, String)]
+
+-- | Get the length of a line.
+lineLen :: [(String, Int)] -> Line -> Int
+lineLen sizes (Line w rest) = wordSize w + sum [gap + wordSize s | (gap, s) <- rest] where
+  wordSize s = fromMaybe 0 (lookup s sizes)
+
+-- | Get the number of words in a line.
+lineWords :: Line -> Int
+lineWords (Line _ rest) = 1 + length rest
+
+-- | Render a paragraph of text to an image.
+render :: String -> Int -> Paragraph -> IO ()
+render fname width ls0 = do
+    ((_,y1), _, (_,y2), _) <- GD.measureString fontName fontSize 0 (0, 0) "l" 0
+    let lineheight = round (1.5 * fromIntegral (abs $ y2 - y1))
+    img <- GD.newImage (width, (length ls0 + 1) * lineheight)
+    GD.fillImage (GD.rgb 255 255 255) img
+    go img lineheight 1 ls0
+    GD.savePngFile fname img
+  where
+    go img lineheight = goLines where
+      goLines n (l:ls) = do
+        goLine n l
+        goLines (n+1) ls
+      goLines _ [] = pure ()
+
+      goLine n (Line w rest) = do
+        let y = n * lineheight
+        let r x s = (\(_, _, (x',_), _) -> x') <$> GD.drawString fontName fontSize 0 (x, y) s 0 img
+        foldM_ (\x (xoff, s) -> r (xoff+x) s) 0 ((0,w):rest)
+
+-------------------------------------------------------------------------------
+-- Justification
+
+type Justifier = Int -> [(String, Int)] -> Int -> [String] -> Paragraph
 
 -- | No wrapping: just put everything on the same line.
 justify1 :: Justifier
@@ -78,7 +125,7 @@ padWords :: Justifier -> Justifier
 padWords justifier width sizes iota = padWords' width sizes . justifier width sizes iota
 
 -- | Put extra padding between words to fill up to the line width.
-padWords' :: Int -> [(String, Int)] -> [Line] -> [Line]
+padWords' :: Int -> [(String, Int)] -> Paragraph -> Paragraph
 padWords' width sizes = go where
   go [] = []
   go [lastLine] = [lastLine]
@@ -120,9 +167,9 @@ hyphenated hyphenator = padWords justifier where
     toLine word rest = Line word [(iota, s) | s <- rest]
 
 -- | Pick the least-bad paragraph.
-leastBad :: (Int -> [(String, Int)] -> Int -> [String] -> [[Line]]) -> Justifier
+leastBad :: (Int -> [(String, Int)] -> Int -> [String] -> [Paragraph]) -> Justifier
 leastBad justifier width sizes iota ws = case sortOn badness (justifier width sizes iota ws) of
-    (leastBad:_) -> leastBad
+    (least:_) -> least
     [] -> []
   where
     -- the badness of a paragraph is the pair @(sum of line badnesses,

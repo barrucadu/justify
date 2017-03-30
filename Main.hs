@@ -3,7 +3,7 @@ module Main where
 import Data.Foldable (for_)
 
 import Common
-import BasicJustifiers
+import qualified Basic
 
 main :: IO ()
 main = do
@@ -13,7 +13,7 @@ main = do
   mapM_ (\(w,s) -> putStrLn ("'" ++ w ++ "': " ++ show s)) sizes
   let width = 500
   iota <- getStringSize " "
-  for_ [(1, justify1), (2, justify2), (3, justify3), (4, justify4), (5, justify5), (6, justify6)] $ \(n, justifier) ->
+  for_ [(1, Basic.justify1), (2, Basic.justify2), (3, Basic.justify3), (4, Basic.justify4), (5, Basic.justify5), (6, Basic.justify6)] $ \(n, justifier) ->
     let ls = justifier width sizes iota (words stdin)
-        fname = "out-" ++ show n ++ ".png"
-    in render fname width ls
+        fname = "out-basic" ++ show n ++ ".png"
+    in Basic.render fname width ls

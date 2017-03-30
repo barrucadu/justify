@@ -1,32 +1,8 @@
 module Common where
 
-import Control.Monad (foldM_)
 import Data.List (inits, nub, tails)
-import Data.Maybe (fromMaybe)
 import qualified Graphics.GD as GD
 import Text.Hyphenation (hyphenate, latin)
-
--------------------------------------------------------------------------------
--- Text Justification
-
-type Justifier = Int -> [(String, Int)] -> Int -> [String] -> [Line]
-
--------------------------------------------------------------------------------
--- Text
-
--- | A line of text is a non-empty list of words interspersed with
--- spaces of varying sizes.
-data Line = Line String [(Int, String)]
-
--- | Get the length of a line.
-lineLen :: [(String, Int)] -> Line -> Int
-lineLen sizes (Line w rest) = wordSize w + sum [gap + wordSize s | (gap, s) <- rest] where
-  wordSize s = fromMaybe 0 (lookup s sizes)
-
--- | Get the number of words in a line.
-lineWords :: Line -> Int
-lineWords (Line _ rest) = 1 + length rest
-
 
 -------------------------------------------------------------------------------
 -- Text Size
@@ -67,31 +43,6 @@ knuthHyphenator :: String -> [(String, String)]
 knuthHyphenator w =
   let prefixes = (init . scanl1 (++)) (hyphenate latin w)
   in map (\prefix -> (prefix++"-", drop (length prefix) w)) prefixes
-
-
--------------------------------------------------------------------------------
--- Rendering
-
--- | Render a paragraph of text to an image.
-render :: String -> Int -> [Line] -> IO ()
-render fname width ls0 = do
-    ((_,y1), _, (_,y2), _) <- GD.measureString fontName fontSize 0 (0, 0) "l" 0
-    let lineheight = round (1.5 * fromIntegral (abs $ y2 - y1))
-    img <- GD.newImage (width, (length ls0 + 1) * lineheight)
-    GD.fillImage (GD.rgb 255 255 255) img
-    go img lineheight 1 ls0
-    GD.savePngFile fname img
-  where
-    go img lineheight = goLines where
-      goLines n (l:ls) = do
-        goLine n l
-        goLines (n+1) ls
-      goLines _ [] = pure ()
-
-      goLine n (Line w rest) = do
-        let y = n * lineheight
-        let r x s = (\(_, _, (x',_), _) -> x') <$> GD.drawString fontName fontSize 0 (x, y) s 0 img
-        foldM_ (\x (xoff, s) -> r (xoff+x) s) 0 ((0,w):rest)
 
 
 -------------------------------------------------------------------------------

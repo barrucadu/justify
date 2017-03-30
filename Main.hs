@@ -21,7 +21,7 @@ main = do
     in Basic.render fname width ls
 
   -- indenting renderers
-  for_ [("rr1", Indent.rr1), ("rr2", Indent.rr2), ("rr3", Indent.rr3), ("rl1", Indent.rl1), ("rl2", Indent.rl2), ("rl3", Indent.rl3), ("justify1", Indent.justify1), ("justify2", Indent.justify2), ("justify3", Indent.justify3)] $ \(n, justifier) ->
+  for_ [("rr1", Indent.rr1), ("rr2", Indent.rr2), ("rr3", Indent.rr3), ("rl1", Indent.rl1), ("rl2", Indent.rl2), ("justify1", Indent.justify1), ("justify2", Indent.justify2), ("justify3", Indent.justify3)] $ \(n, justifier) ->
     let ls    = justifier width sizes iota (words stdin)
         fname = "out-indent-" ++ n ++ ".png"
     in Indent.render sizes fname ls

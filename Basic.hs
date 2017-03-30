@@ -2,7 +2,6 @@ module Basic where
 
 import Control.Monad (foldM_)
 import Data.List (sortOn)
-import Data.Maybe (fromMaybe)
 import Data.Ord (Down(..))
 import qualified Graphics.GD as GD
 
@@ -20,8 +19,7 @@ data Line = Line String [(Int, String)]
 
 -- | Get the length of a line.
 lineLen :: [(String, Int)] -> Line -> Int
-lineLen sizes (Line w rest) = wordSize w + sum [gap + wordSize s | (gap, s) <- rest] where
-  wordSize s = fromMaybe 0 (lookup s sizes)
+lineLen sizes (Line w rest) = wordSize sizes w + sum [gap + wordSize sizes s | (gap, s) <- rest]
 
 -- | Get the number of words in a line.
 lineWords :: Line -> Int
@@ -63,7 +61,7 @@ justify1 _ _ _ [] = []
 justify2 :: Justifier
 justify2 width sizes iota = go ([], 0) where
   go (sofar, len) (w:ws) =
-    let newlen = len + iota + fromMaybe 0 (lookup w sizes)
+    let newlen = len + iota + wordSize sizes w
     in if newlen > width
        then case reverse sofar of
               (word:rest) -> toLine word rest : go ([], 0) (w:ws)
@@ -94,9 +92,9 @@ justify5 = hyphenated knuthHyphenator
 justify6 :: Justifier
 justify6 = leastBad justifier where
   justifier width sizes iota = map (padWords' width sizes) . go ([], 0) where
-    go ([], _) (w:ws) = go ([w], fromMaybe 0 (lookup w sizes)) ws
+    go ([], _) (w:ws) = go ([w], wordSize sizes w) ws
     go (sofar, len) (w:ws)
-      | fits len w = go (w:sofar, len + iota + fromMaybe 0 (lookup w sizes)) ws
+      | fits len w = go (w:sofar, len + iota + wordSize sizes w) ws
       | otherwise =
         (case reverse sofar of
            (word:rest) -> [toLine word rest : ls | ls <- go ([], 0) (w:ws)]
@@ -112,7 +110,7 @@ justify6 = leastBad justifier where
       (word:rest) -> [[toLine word rest]]
       [] -> [[]]
 
-    fits len w = len + iota + fromMaybe 0 (lookup w sizes) <= width
+    fits len w = len + iota + wordSize sizes w <= width
 
     toLine word rest = Line word [(iota, s) | s <- rest]
 
@@ -148,9 +146,9 @@ padWords' width sizes = go where
 hyphenated :: (String -> [(String, String)]) -> Justifier
 hyphenated hyphenator = padWords justifier where
   justifier width sizes iota = go ([], 0) where
-    go ([], _) (w:ws) = go ([w], fromMaybe 0 (lookup w sizes)) ws
+    go ([], _) (w:ws) = go ([w], wordSize sizes w) ws
     go (sofar, len) (w:ws)
-      | fits len w = go (w:sofar, len + iota + fromMaybe 0 (lookup w sizes)) ws
+      | fits len w = go (w:sofar, len + iota + wordSize sizes w) ws
       | otherwise = case dropWhile (not . fits len . fst) . sortOn (Down . length . fst) $ hyphenator w of
           ((h,t):_)  -> case reverse (h:sofar) of
             (word:rest) -> toLine word rest : go ([], 0) (t:ws)
@@ -162,7 +160,7 @@ hyphenated hyphenator = padWords justifier where
       (word:rest) -> [toLine word rest]
       [] -> []
 
-    fits len w = len + iota + fromMaybe 0 (lookup w sizes) <= width
+    fits len w = len + iota + wordSize sizes w <= width
 
     toLine word rest = Line word [(iota, s) | s <- rest]
 

@@ -1,6 +1,7 @@
 module Common where
 
 import Data.List (inits, nub, tails)
+import Data.Maybe (fromMaybe)
 import qualified Graphics.GD as GD
 import Text.Hyphenation (hyphenate, latin)
 
@@ -25,6 +26,9 @@ getStringSize str = do
   ((x1,_), _, (x2,_), _) <- GD.measureString fontName fontSize 0 (0, 0) str 0
   pure (x2-x1)
 
+-- | Get the size of a word.
+wordSize :: [(String, Int)] -> String -> Int
+wordSize sizes w = fromMaybe 0 (lookup w sizes)
 
 -------------------------------------------------------------------------------
 -- Word Breaking

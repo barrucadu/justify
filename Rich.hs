@@ -36,17 +36,21 @@ maxLineLen sizes ls = maximum (0:map (lineLen sizes) ls)
 getLineHeight :: IO Int
 getLineHeight = do
   ((_,y1), _, (_,y2), _) <- GD.measureString (fontName Normal) fontSize 0 (0, 0) "l" 0
-  pure $ round (1.5 * fromIntegral (abs $ y2 - y1))]
+  pure $ round (1.5 * fromIntegral (abs $ y2 - y1))
+
+-- | Render a paragraph of text to a file
+render :: [((String, Font), Int)] -> String -> Paragraph -> IO ()
+render sizes fname ls0 = GD.savePngFile fname =<< renderImage sizes ls0
 
 -- | Render a paragraph of text to an image.
-render :: [((String, Font), Int)] -> String -> Paragraph -> IO ()
-render sizes fname ls0 = do
+renderImage :: [((String, Font), Int)] -> Paragraph -> IO GD.Image
+renderImage sizes ls0 = do
+    lineheight <- getLineHeight
     let width = maxLineLen sizes ls0
     img <- GD.newImage (width, (length ls0 + 1) * lineheight)
     GD.fillImage (GD.rgb 255 255 255) img
-    lineheight <- getLineHeight
     go img lineheight 1 ls0
-    GD.savePngFile fname img
+    pure img
   where
     go img lineheight = goLines where
       goLines n (l:ls) = do

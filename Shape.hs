@@ -4,12 +4,15 @@ import Control.Monad (foldM_, mapM_)
 import qualified Graphics.GD as GD
 
 import Common (fontSize)
-import Rich (Font(..), Justifier, Paragraph, fontName, indentsAndLineLengths, lineLen, maxLineLen, padWords)
+import Rich (Font(..), Justifier, Paragraph, fontName, indentsAndLineLengths, lineLen, maxLineLen, padWords, renderImage)
+
+-------------------------------------------------------------------------------
+-- Square
 
 -- | Justify text in a way which can be rendered into a square by
 -- 'squareR'.
-squareJ :: Justifier
-squareJ width0 sizes = indentsAndLineLengths lenf justify width0 sizes where
+squareJ :: a -> Justifier
+squareJ _ width0 sizes = indentsAndLineLengths lenf justify width0 sizes where
   justify = padWords sizes (snd . lenf)
   lenf n
     | n < squareGapStart || n >= (squareGapStart + squareGapLines*2) = (0, width0)
@@ -65,3 +68,39 @@ squareGapLines = 6
 -- | Size of the gap, as a function of line width.
 squareGapSize :: Int -> Int
 squareGapSize = (`div`2)
+
+
+-------------------------------------------------------------------------------
+-- Lain
+
+-- | Justify text to flow around a lain image.
+lainJ :: Int -> Justifier
+lainJ lineHeight width0 sizes = indentsAndLineLengths lenf justify width0 sizes where
+  justify = padWords sizes (snd . lenf)
+  lenf n
+    | n <= lainImageHeight `div` lineHeight = (lainImageWidth + lainImageGap, width0 - lainImageWidth - lainImageGap)
+    | otherwise = (0, width0)
+
+-- | Render text + lain image.
+lainR :: [((String, Font), Int)] -> String -> Paragraph -> IO ()
+lainR sizes fname ls0 = do
+  img <- renderImage sizes ls0
+  lainImg <- GD.loadGifFile lainImageFile
+  GD.copyRegion (0,0) (lainImageWidth,lainImageHeight) lainImg (0,0) img
+  GD.savePngFile fname img
+
+-- | Pixel height of the lain image.
+lainImageHeight :: Int
+lainImageHeight = 300
+
+-- | Pixel width of the lain image.
+lainImageWidth :: Int
+lainImageWidth = 250
+
+-- | Pixel size of horizontal gap between lain image and text
+lainImageGap :: Int
+lainImageGap = 15
+
+-- | Filename of the lain image.
+lainImageFile :: String
+lainImageFile = "/home/barrucadu/projects/justify/lain.gif"

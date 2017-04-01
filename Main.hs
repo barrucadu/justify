@@ -39,8 +39,9 @@ main = do
   -- shape renderers
   let rtf2 = [(stdin, Rich.Normal)]
   richSizes2 <- Rich.getWordSizes rtf2
-  for_ [("square", Shape.squareJ, Shape.squareR)] $ \(n, justifier, renderer) ->
-    let ls    = justifier width richSizes2 iota rtf2
+  lineHeight <- Rich.getLineHeight
+  for_ [("square", Shape.squareJ, Shape.squareR), ("lain", Shape.lainJ, Shape.lainR)] $ \(n, justifier, renderer) ->
+    let ls    = justifier lineHeight width richSizes2 iota rtf2
         fname = "out-shape-" ++ n ++ ".png"
     in renderer richSizes2 fname ls
 

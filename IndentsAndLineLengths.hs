@@ -3,6 +3,7 @@ module IndentsAndLineLengths
     Paragraph
   , Line
   , Font(..)
+  , fontName
   , RichText
   -- * Hyphenation
   , Hyphenator
@@ -12,10 +13,12 @@ module IndentsAndLineLengths
   , knuthHyphenator
   -- * Layout
   , getWordSizes
+  , getStringSize
   , Aligner
   , raggedRight
   , raggedLeft
   , justified
+  , centred
   -- ** Helpers for making your own aligner
   , indentsAndLineLengths
   , padWords
@@ -54,19 +57,21 @@ render :: Double -- ^ The font size
   -> Paragraph -- ^ The text
   -> String -- ^ The file name
   -> IO ()
-render fontSize sizes ls0 fname = GD.savePngFile fname =<< renderImage fontSize sizes ls0
+render fontSize sizes ls0 fname = GD.savePngFile fname =<< renderImage (GD.rgb 255 255 255) (GD.rgb 0 0 0) fontSize sizes ls0
 
 -- | Render a paragraph of text to an image.
-renderImage :: Double -- ^ The font size
+renderImage :: GD.Color -- ^ The background colour
+  -> GD.Color -- ^ The text colour
+  -> Double -- ^ The font size
   -> [((String, Font), Int)] -- ^ The word sizes
   -> Paragraph -- ^ The text
   -> IO GD.Image
-renderImage fontSize sizes ls0 = do
+renderImage bgColour textColour fontSize sizes ls0 = do
     ((_,y1), _, (_,y2), _) <- GD.measureString (fontName Normal) fontSize 0 (0, 0) "l" 0
     let lineheight = round (1.5 * fromIntegral (abs $ y2 - y1) :: Double)
     let width = maxLineLen sizes ls0
     img <- GD.newImage (width, (length ls0 + 1) * lineheight)
-    GD.fillImage (GD.rgb 255 255 255) img
+    GD.fillImage bgColour img
     go img lineheight 1 ls0
     pure img
   where
@@ -78,7 +83,7 @@ renderImage fontSize sizes ls0 = do
 
       goLine n ws = do
         let y = n * lineheight
-        let r f x s = (\(_, _, (x',_), _) -> x') <$> GD.drawString (fontName f) fontSize 0 (x, y) s 0 img
+        let r f x s = (\(_, _, (x',_), _) -> x') <$> GD.drawString (fontName f) fontSize 0 (x, y) s textColour img
         foldM_ (\x (xoff, s, f) -> r f (xoff+x) s) 0 ws
 
 -------------------------------------------------------------------------------
@@ -173,6 +178,13 @@ justified :: Aligner
 justified hyphenator sizes iota width =
   let lenf _ = (0::Int, width)
       post   = padWords sizes (snd . lenf)
+  in indentsAndLineLengths lenf post hyphenator sizes iota width
+
+-- | Centred
+centred :: Aligner
+centred hyphenator sizes iota width =
+  let lenf _ = (0::Int, width)
+      post   = map (\l@((i,w,f):|ws) -> ((width - (lineLen sizes l - i)) `div` 2,w,f):|ws)
   in indentsAndLineLengths lenf post hyphenator sizes iota width
 
 -- | Justified text with per-line left indents and lengths.

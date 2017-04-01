@@ -243,7 +243,7 @@ padWords sizes lenf = go 0 where
 
   go' wordSlack extraSlack extraSlackPos ((gap,w,f):ws)
     | extraSlackPos == 0 = (gap + wordSlack + extraSlack, w, f) : go' wordSlack 0 0 ws
-    | otherwise = (gap + wordSlack, w, f) : go' wordSlack extraSlack extraSlackPos ws
+    | otherwise = (gap + wordSlack, w, f) : go' wordSlack extraSlack (extraSlackPos-1) ws
   go' _ _ _ [] = []
 
 -- | Pick the least-bad paragraph.

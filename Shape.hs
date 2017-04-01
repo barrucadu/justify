@@ -9,11 +9,11 @@ import Rich (Font(..), Justifier, Paragraph, fontName, indentsAndLineLengths, li
 -- | Justify text in a way which can be rendered into a square by
 -- 'squareR'.
 squareJ :: Justifier
-squareJ width0 sizes = indentsAndLineLengths (lenf width0) justify width0 sizes where
-  justify = padWords sizes (snd . lenf width0)
-lenf width0 n
-  | n < squareGapStart || n >= (squareGapStart + squareGapLines*2) = (0, width0)
-  | otherwise = (0, (width0 - squareGapSize width0) `div` 2)
+squareJ width0 sizes = indentsAndLineLengths lenf justify width0 sizes where
+  justify = padWords sizes (snd . lenf)
+  lenf n
+    | n < squareGapStart || n >= (squareGapStart + squareGapLines*2) = (0, width0)
+    | otherwise = (0, (width0 - squareGapSize width0) `div` 2)
 
 -- | Render text with a square gap. Assumes text has been justified with 'squareJ'.
 squareR :: [((String, Font), Int)] -> String -> Paragraph -> IO ()
@@ -28,11 +28,11 @@ squareR sizes fname ls0 = do
   where
     go gapxoff img lineheight = goLines lineheight where
       goLines yoff n ls0@(l:ls)
-        | n == squareGapStart = putStrLn "GAP START" >> goLines' yoff 0 ls0
+        | n == squareGapStart = goLines' yoff 0 ls0
         | otherwise = drawLineAt yoff 0 l >> goLines (yoff+lineheight) (n+1) ls
       goLines _ _ [] = pure ()
       goLines' yoff n ls0@(l1:l2:ls)
-        | n == squareGapLines = putStrLn "GAP STOP" >> goLines'' yoff ls0
+        | n == squareGapLines = goLines'' yoff ls0
         | otherwise = drawLineAt yoff 0 l1 >> drawLineAt yoff gapxoff l2 >> goLines' (yoff+lineheight) (n+1) ls
       goLines' yoff _ [l] = drawLineAt yoff 0 l
       goLines' _ _ [] = pure ()

@@ -8,6 +8,7 @@ cabal-version:       >=1.10
 
 executable justify
   main-is:             Main.hs
-  other-modules:       Basic, Common, Indent, Rich, Shape
+  other-modules:       Basic, Common, Indent, Rich, Shape, IndentsAndLineLengths
   build-depends:       base, gd, hyphenation
   default-language:    Haskell2010
+  ghc-options:         -Wall

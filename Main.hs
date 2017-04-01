@@ -7,6 +7,7 @@ import qualified Basic
 import qualified Indent
 import qualified Rich
 import qualified Shape
+import qualified IndentsAndLineLengths
 
 main :: IO ()
 main = do

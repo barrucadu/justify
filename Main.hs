@@ -95,12 +95,12 @@ demoDoc =
 \-- | A text justifier takes a line width, list of word (and word fragment) sizes, a minimum space width,\n\
 \-- a list of words, and produces a list of lines\n\
 \type Justifier = Int -> [(String, Int)] -> Int -> [String] -> [Line]"
-    , imageWithCaption "/home/barrucadu/projects/justify/out-basic-1.png" [("out-1.png:", IAL.Bold), ("a test, to make sure I could actually render things to an image.", IAL.Italic)]
+    , imageWithCaption "out-basic-1.png" [("out-1.png:", IAL.Bold), ("a test, to make sure I could actually render things to an image.", IAL.Italic)]
     , verb "\
 \justify1 :: Justifier\n\
 \justify1 _ _ iota (w:ws) = [Line w [(iota, w') | w' <- ws]]\n\
 \justify1 _ _ _ [] = []"
-    , imageWithCaption "/home/barrucadu/projects/justify/out-basic-2.png" [("out-2.png:", IAL.Bold), ("a simple greedy ragged-right: put words on a line until they don't fit any more.", IAL.Italic)]
+    , imageWithCaption "out-basic-2.png" [("out-2.png:", IAL.Bold), ("a simple greedy ragged-right: put words on a line until they don't fit any more.", IAL.Italic)]
     , verb "\
 \justify2 :: Justifier\n\
 \justify2 width sizes iota = go ([], 0) where\n\
@@ -116,7 +116,7 @@ demoDoc =
 \    [] -> []\n\
 \\n\
 \  toLine word rest = Line word [(iota, s) | s <- rest]"
-    , imageWithCaption "/home/barrucadu/projects/justify/out-basic-3.png" [("out-3.png:", IAL.Bold), ("what I have decided to call \"web browser text justification\".", IAL.Italic)]
+    , imageWithCaption "out-basic-3.png" [("out-3.png:", IAL.Bold), ("what I have decided to call \"web browser text justification\".", IAL.Italic)]
     , text "The awful algorithm which makes justification such a no-no on webpages. First, allocate words to lines with ragged-right, then evenly spread spaces to use up the extra space. It can be implemented as a simple modification of the ragged right function:"
     , verb "\
 \justify3 :: Justifier\n\
@@ -143,7 +143,7 @@ demoDoc =
 \  go' _ _ _ [] = []"
     , text "This is the limit of what we can do without hyphenation."
     , smallheading "Hyphenation"
-    , imageWithCaption "/home/barrucadu/projects/justify/out-basic-4.png" [("out-4.png:", IAL.Bold), ("a very naive hyphenation strategy, it just splits words wherever it likes (the fragments' function returns all breakings of a word)", IAL.Italic)]
+    , imageWithCaption "out-basic-4.png" [("out-4.png:", IAL.Bold), ("a very naive hyphenation strategy, it just splits words wherever it likes (the fragments' function returns all breakings of a word)", IAL.Italic)]
     , verb "\
 \justify4 :: Justifier\n\
 \justify4 = hyphenated fragments'\n\
@@ -173,7 +173,7 @@ demoDoc =
 \    fits len w = len + iota + wordSize sizes w <= width\n\
 \\n\
 \    toLine word rest = Line word [(iota, s) | s <- rest]"
-    , imageWithCaption "/home/barrucadu/projects/justify/out-basic-5.png" [("out-5.png:", IAL.Bold), ("the Knuth-Liang hyphenation algorithm, here with the Latin rules because I am typesetting Lorem Ipsum.", IAL.Italic)]
+    , imageWithCaption "out-basic-5.png" [("out-5.png:", IAL.Bold), ("the Knuth-Liang hyphenation algorithm, here with the Latin rules because I am typesetting Lorem Ipsum.", IAL.Italic)]
     , text "This produces much prettier results."
     , verb "\
 \justify5 :: Justifier\n\
@@ -185,7 +185,7 @@ demoDoc =
 \  in map (\\prefix -> (prefix++\"-\", drop (length prefix) w)) prefixes"
     , smallheading "Minimising Badness"
     , text "Until now, all these algorithms have been greedy. Once they commit a word (or a fragment of a word) to a line, that decision is never revisited. I suspect that out-5.png is the limit of what can be achieved with greedy algorithms: it looks good, but not great. This brings me to the next version of the algorithm. When a word doesn't fit on a line in its entirety, all possible hyphenations are tried (including just shoving the word onto the next line entirely). Afterwards, the least-bad paragraph is picked. out-6.png shows the result."
-    , imageWithCaption "/home/barrucadu/projects/justify/out-basic-6.png" [("out-6.png:", IAL.Bold), ("non-greedy 'least-bad' hyphenation", IAL.Italic)]
+    , imageWithCaption "out-basic-6.png" [("out-6.png:", IAL.Bold), ("non-greedy 'least-bad' hyphenation", IAL.Italic)]
     , verb "\
 \justify6 :: Justifier\n\
 \justify6 = leastBad justifier where\n\
@@ -230,9 +230,9 @@ demoDoc =
 \      in (sum (map lbadness ls), length (filter lhyphenated ls))"
     , text "I am pretty happy with this, but I suspect there is more I could achieve. I'm not really sure what yet, though."
     , smallheading "Rich Text, Indents, and Line Lengths"
-    , imageWithCaption "/home/barrucadu/projects/justify/out-rich-rr3.png" [("out-rich-rr3.png:", IAL.Bold), ("ragged-right", IAL.Italic)]
-    , imageWithCaption "/home/barrucadu/projects/justify/out-rich-rl2.png" [("out-rich-rl2.png:", IAL.Bold), ("ragged-left", IAL.Italic)]
-    , imageWithCaption "/home/barrucadu/projects/justify/out-rich-justify3.png" [("out-rich-justify3.png:", IAL.Bold), ("justified", IAL.Italic)]
+    , imageWithCaption "out-rich-rr3.png" [("out-rich-rr3.png:", IAL.Bold), ("ragged-right", IAL.Italic)]
+    , imageWithCaption "out-rich-rl2.png" [("out-rich-rl2.png:", IAL.Bold), ("ragged-left", IAL.Italic)]
+    , imageWithCaption "out-rich-justify3.png" [("out-rich-justify3.png:", IAL.Bold), ("justified", IAL.Italic)]
     , text "I've added a couple of new features to my algorithm: rich text (bold, italic, and monospace), variable line-lengths, and variable left-indents. The attached images show some different configurations of the same string, changing formatting every three words. For this, I had to change the line type to include fonts, and allow spaces before even the first word:"
     , verb "type Line = NonEmpty (Int, String, Font)"
     , text "I measure the width of every word and partial word in the input, with the exception of monospaced spans, which never get broken over lines:"
@@ -299,7 +299,7 @@ demoDoc =
 \  hyphens (w, f) = map (\\(h,t) -> ((h,f),(t,f))) (knuthHyphenator w)"
     , text "This perfoms no justification by itself. The postf parameter can adjust word spacing and line indents to get ragged left or justified text. I don't have any more ideas for how to improve this. I think I might call it done and go read the Knuth-Plass paper to see how close I got."
     , smallheading "Images"
-    , imageWithCaption "/home/barrucadu/projects/justify/out-shape-lain.png" [("out-shape-lain.png:", IAL.Bold), ("block images.", IAL.Italic)]
+    , imageWithCaption "out-shape-lain.png" [("out-shape-lain.png:", IAL.Bold), ("block images.", IAL.Italic)]
     , text "Block images are fairly simple, given that line indents can be variable. Say you have an image Xpx wide and want a result Ypx wide. You render your text with the first N lines (Y - X - some gap)px wide and the rest Ypx wide. Then the renderer just puts the image in the top-let, offsets the first N lines by (X + some gap) pixels, and renders the remaining lines normally. N will be (height of image / height of line)."
     , verb "\
 \lainJ :: Int -> Justifier\n\

@@ -300,7 +300,7 @@ demoDoc =
     , text "This perfoms no justification by itself. The postf parameter can adjust word spacing and line indents to get ragged left or justified text. I don't have any more ideas for how to improve this. I think I might call it done and go read the Knuth-Plass paper to see how close I got."
     , smallheading "Images"
     , imageWithCaption "out-shape-lain.png" [("out-shape-lain.png:", IAL.Bold), ("block images.", IAL.Italic)]
-    , text "Block images are fairly simple, given that line indents can be variable. Say you have an image Xpx wide and want a result Ypx wide. You render your text with the first N lines (Y - X - some gap)px wide and the rest Ypx wide. Then the renderer just puts the image in the top-let, offsets the first N lines by (X + some gap) pixels, and renders the remaining lines normally. N will be (height of image / height of line)."
+    , text "Block images are fairly simple, given that line indents can be variable. Say you have an image Xpx wide and want a result Ypx wide. You render your text with the first N lines (Y - X - some gap)px wide and the rest Ypx wide. Then the renderer just puts the image in the top-left, offsets the first N lines by (X + some gap) pixels, and renders the remaining lines normally. N will be (height of image / height of line)."
     , verb "\
 \lainJ :: Int -> Justifier\n\
 \lainJ lineHeight width0 sizes = indentsAndLineLengths lenf justify width0 sizes where\n\

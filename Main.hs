@@ -48,7 +48,7 @@ main = do
         fname = "out-shape-" ++ n ++ ".png"
     in renderer richSizes2 fname ls
 
-  savePngFile "doc.png" =<< demoDoc
+  savePngFile "README.png" =<< demoDoc
 
 -- | Default line length
 width :: Int
